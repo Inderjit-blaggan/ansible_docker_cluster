@@ -1,0 +1,18 @@
+# env/env1/cluster_config.yml
+general_config:
+  docker_version: "24.0.5"
+  username: ec2-user
+  ssh_private_key_file: /root/external_repo/ansible_dynamic_inventroy/onprem_docker_txerp_cluster.pem
+
+nodes:
+  node01:
+    docker_node_name: docker-master
+    docker_node_ip: 10.254.3.48 # Replace with actual EC2 IP
+
+  node02:
+    docker_node_name: docker-worker-1
+    docker_node_ip: 10.254.3.92 # Replace with actual EC2 IP
+
+  node03:
+    docker_node_name: docker-worker-2
+    docker_node_ip: 10.254.3.222  # Replace with actual EC2 IP

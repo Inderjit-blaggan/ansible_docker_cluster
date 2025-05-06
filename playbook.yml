@@ -1,0 +1,55 @@
+# ansible_project/playbook.yml
+---
+# Play 1: Install Docker, gather facts, and group hosts for Swarm
+- name: Prepare Docker Hosts and Group by Swarm Role
+  hosts: all # Target all hosts defined by the dynamic inventory for the chosen env
+  gather_facts: true # Gather facts initially for IP addresses, etc.
+  become: false # Role/tasks below will use 'become' as needed
+
+  roles:
+    # Role 1: Ensure Docker is installed and configured correctly
+    - role: docker_dependencies
+      vars:
+        docker_group_user: "{{ ansible_user }}"
+
+  tasks:
+    # Task 1: Dynamically create 'swarm_master' and 'swarm_worker' groups
+    - name: Group hosts by Swarm role based on docker_node_name
+      ansible.builtin.group_by:
+        # Creates groups named 'swarm_master' or 'swarm_worker' in memory
+        key: "swarm_{{ 'master' if docker_node_name == 'docker-master' else 'worker' }}"
+      when: docker_node_name is defined # Only group if the variable exists from inventory
+      changed_when: false # Grouping doesn't change system state
+
+    # Task 2: Sanity check - ensure at least one master is defined
+    - name: Fail if no master node defined
+      ansible.builtin.fail:
+        msg: "No node found with docker_node_name set to 'docker-master'. Cannot initialize Swarm."
+      run_once: true # Check only once per playbook run
+      # Check if the group wasn't created or is empty
+      when: groups['swarm_master'] is not defined or groups['swarm_master'] | length == 0
+
+    # Task 3: Sanity check - warn if more than one master is defined (we only use the first)
+    - name: Warn if multiple master nodes defined
+      ansible.builtin.debug:
+        msg: "WARNING: Multiple nodes found with docker_node_name 'docker-master'. Using {{ groups['swarm_master'][0] }} as the primary master for joining."
+      run_once: true # Check only once per playbook run
+      when: groups['swarm_master'] is defined and groups['swarm_master'] | length > 1
+
+    # Task 4: Set hostnames based on docker_node_name
+    - name: Set hostnames based on docker_node_name
+      become: true
+      ansible.builtin.hostname:
+        name: "{{ docker_node_name }}" # Use the variable directly
+      when: docker_node_name is defined # Keep the check that the variable exists
+
+# Play 2: Configure Docker Swarm using the dynamically created groups
+- name: Configure Docker Swarm
+  hosts: all # Target all hosts again so master and workers are available for role logic
+  gather_facts: false # Facts were gathered in the previous play
+  become: false # Role tasks use 'become: true' where needed
+
+  roles:
+    # Role 2: Initialize Swarm on master and join workers
+    - role: docker_swarm
+
