@@ -2,8 +2,7 @@
 general_config:
   docker_version: "24.0.5"
   username: ec2-user
-  ssh_private_key_file: /root/external_repo/ansible_dynamic_inventroy/onprem_docker_txerp_cluster.pem
-
+  ssh_private_key_file: <keyfile>
 nodes:
   node01:
     docker_node_name: docker-master
